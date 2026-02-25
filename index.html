@@ -1,172 +1,233 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
-    <title>HSR Unified - RS Edition</title>
+    <title>HSR - Check-up em Tempo Real</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0b111a; --card: #161e2b; --blue: #00a2ff; --green: #00e676; --red: #ff5252; --yellow: #ffeb3b; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #cfd8dc; margin: 0; padding: 20px; }
-        #mode-selector { max-width: 400px; margin: 80px auto; text-align: center; background: var(--card); padding: 40px; border-radius: 15px; border: 1px solid var(--blue); }
-        .btn-mode { border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 15px; transition: 0.3s; }
-        .btn-agente { background: var(--blue); color: white; }
-        .btn-monitor { background: #37474f; color: white; }
-        #view-agente, #view-monitor { display: none; }
-        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 15px; border-left: 6px solid var(--blue); }
-        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #232d3d; }
-        .val { color: #fff; font-weight: bold; font-family: 'Consolas', monospace; }
-        .editable-name { background: rgba(0,162,255,0.2); border: 1px dashed var(--blue); padding: 2px 10px; border-radius: 4px; cursor: pointer; }
-        .station-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .station-card { background: var(--card); border-radius: 10px; padding: 15px; border-left: 6px solid #444; }
-        .status-internet-ruim { border-left-color: var(--red); animation: pulse 2s infinite; }
-        .status-cpu-ruim { border-left-color: var(--yellow); }
-        .status-ok { border-left-color: var(--green); }
-        .status-offline { border-left-color: #455a64; opacity: 0.6; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 82, 82, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); } }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0b111a;
+            color: #cfd8dc;
+            padding: 20px;
+        }
+
+        .diagnostic-container {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        .card {
+            background: #161e2b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 6px solid #00a2ff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        h2 {
+            color: #00a2ff;
+            margin-top: 0;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #232d3d;
+        }
+
+        .label {
+            color: #90a4ae;
+        }
+
+        .val {
+            color: #fff;
+            font-weight: bold;
+            font-family: 'Consolas', monospace;
+        }
+
+        .summary-box {
+            background: #1c2738;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px dashed #455a64;
+            line-height: 1.5;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            margin-top: 10px;
+        }
+
+        .btn-save {
+            background: #00e676;
+            color: #0b111a;
+        }
+
+        .btn-anydesk {
+            background: #ef4444;
+            color: white;
+        }
+
+        .link-card {
+            background: #1c2738;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-top: 15px;
+        }
+
+        .link-item {
+            color: #4fc3f7;
+            text-decoration: none;
+            font-weight: bold;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .excelente {
+            color: #00e676;
+        }
+
+        .media {
+            color: #ffeb3b;
+        }
+
+        .ruim {
+            color: #ff9100;
+        }
+
+        .pessima {
+            color: #ff5252;
+        }
     </style>
 </head>
+
 <body>
 
-    <div id="mode-selector">
-        <h2 style="color:var(--blue)">SISTEMA HSR</h2>
-        <button class="btn-mode btn-agente" onclick="switchView('agente')">MODO AGENTE</button>
-        <button class="btn-mode btn-monitor" onclick="checkPass()">MODO MONITORAMENTO</button>
-    </div>
-
-    <div id="view-agente" style="max-width:600px; margin:auto;">
+    <div id="capture-area" class="diagnostic-container">
         <div class="card">
-            <h2>ESTAÇÃO: <span id="st-id" class="editable-name" onclick="changeName()">---</span></h2>
-            <div class="info-row"><span>IP:</span> <span id="ip-res" class="val">Detectando...</span></div>
-            <div class="info-row"><span>ISP:</span> <span id="isp-res" class="val">Detectando...</span></div>
+            <h2>🌐 Identificação de Conexão</h2>
+            <div class="info-row"><span class="label">IP de Internet:</span> <span id="ip-res"
+                    class="val">Detectando...</span></div>
+            <div class="info-row"><span class="label">Provedor (ISP):</span> <span id="isp-res"
+                    class="val">Detectando...</span></div>
+            <div class="info-row"><span class="label">Localização:</span> <span id="geo-res"
+                    class="val">Solicitando...</span></div>
         </div>
+
         <div class="card">
-            <h2>MONITORAMENTO</h2>
-            <div class="info-row"><span>Ping:</span> <span id="ping-val" class="val">--</span></div>
-            <div class="info-row"><span>CPU:</span> <span id="cpu-val" class="val">--</span></div>
-            <div class="info-row"><span>Média:</span> <span id="media-val" class="val">--</span></div>
+            <h2>📡 Performance HSR (Tempo Real)</h2>
+            <div class="info-row"><span class="label">Latência:</span> <span id="ping-val"
+                    class="val">Testando...</span></div>
+            <div class="info-row"><span class="label">Saúde da CPU:</span> <span id="cpu-val"
+                    class="val">Testando...</span></div>
         </div>
-        <button onclick="saveAsJpeg()" style="background:var(--green); border:none; padding:15px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;">📸 GERAR PRINT</button>
+
+        <div class="card">
+            <h2>📊 Resumo & Diagnóstico</h2>
+            <div id="summary-text" class="summary-box">Calculando...</div>
+        </div>
+
+        <div class="card">
+            <h2>🔗 Links Úteis</h2>
+            <div class="link-card">
+                <span style="color: #90a4ae; font-size: 0.8rem;">SISTEMA OPERACIONAL:</span>
+                <a href="https://cati.fastquest.net/frmlogin.aspx" target="_blank" class="link-item">➜ Login
+                    Fastdialer</a>
+            </div>
+        </div>
     </div>
 
-    <div id="view-monitor">
-        <h1 style="text-align:center">CONTROLE HSR</h1>
-        <div id="stations-container" class="station-grid"></div>
+    <div class="diagnostic-container">
+        <button onclick="saveAsJpeg()" class="btn btn-save">📸 SALVAR TELA COMO JPEG (PRINT)</button>
+        <a href="https://anydesk.com/pt/downloads/thank-you?dv=win_exe" class="btn btn-anydesk">🚀 BAIXAR ANYDESK</a>
     </div>
 
-<script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyBxu-QXp3lkb1JMW-wmdS7drOYNuNL-3iw",
-        authDomain: "interview-69ef5.firebaseapp.com",
-        databaseURL: "https://interview-69ef5-default-rtdb.firebaseio.com/",
-        projectId: "interview-69ef5",
-        storageBucket: "interview-69ef5.firebasestorage.app",
-        messagingSenderId: "877203281572",
-        appId: "1:877203281572:web:c86ee64b4d5d32d11ff831"
-    };
-    
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    let pingHistory = [];
-
-    // --- DETECÇÃO DE IP (MÉTODO BLINDADO) ---
-    function fetchNetInfo() {
-        const script = document.createElement('script');
-        script.src = 'https://ipapi.co/jsonp/?callback=updateNet';
-        document.body.appendChild(script);
-    }
-    function updateNet(data) {
-        document.getElementById('ip-res').innerText = data.ip || "N/A";
-        document.getElementById('isp-res').innerText = data.org || "N/A";
-    }
-
-    // --- GESTÃO DE NOMES ---
-    function initName() {
-        let name = localStorage.getItem('hsr_name');
-        if(!name) {
-            name = "HSR-" + Math.floor(1000 + Math.random() * 9000);
-            localStorage.setItem('hsr_name', name);
+    <script>
+        // 1. Coleta de IP/Provedor
+        function fetchNetInfo() {
+            fetch('http://ip-api.com/json/?fields=status,country,regionName,city,isp,query')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        document.getElementById('ip-res').innerText = data.query;
+                        document.getElementById('isp-res').innerText = data.isp;
+                        document.getElementById('geo-res').innerText = data.city + ", " + data.regionName;
+                        window.userCity = data.city;
+                    }
+                });
         }
-        document.getElementById('st-id').innerText = name;
-    }
-    function changeName() {
-        const newName = prompt("Mudar nome da estação:", document.getElementById('st-id').innerText);
-        if(newName) {
-            localStorage.setItem('hsr_name', newName);
-            location.reload();
+
+        // 2. Teste de CPU (Benchmark Automático)
+        function checkCPU() {
+            const start = performance.now();
+            let count = 0;
+            while (performance.now() - start < 150) { count++; }
+            const cpuElem = document.getElementById('cpu-val');
+            if (count > 400000) { cpuElem.innerText = "Estável"; cpuElem.className = "val excelente"; }
+            else { cpuElem.innerText = "Sobrecarga"; cpuElem.className = "val pessima"; }
         }
-    }
 
-    function switchView(m) {
-        document.getElementById('mode-selector').style.display = 'none';
-        if(m === 'agente') {
-            document.getElementById('view-agente').style.display = 'block';
-            initName(); fetchNetInfo(); startAgente();
-        } else {
-            document.getElementById('view-monitor').style.display = 'block';
-            startMonitor();
-        }
-    }
-
-    function checkPass() { if(prompt("Senha:") === 'hsr') switchView('monitor'); }
-
-    function startAgente() {
-        setInterval(() => {
+        // 3. Teste de Latência em Tempo Real
+        function measurePing() {
             const start = Date.now();
             const img = new Image();
             img.src = "https://hsrpbx.com.br/favicon.ico?t=" + start;
-            img.onload = () => {
+            img.onload = img.onerror = () => {
                 const delta = Date.now() - start;
-                document.getElementById('ping-val').innerText = delta + " ms";
-                pingHistory.push(delta);
-                if(pingHistory.length > 100) pingHistory.shift();
-                const avg = Math.round(pingHistory.reduce((a,b)=>a+b,0)/pingHistory.length);
-                document.getElementById('media-val').innerText = avg + " ms";
-                
-                db.ref('stations/' + localStorage.getItem('hsr_name')).update({
-                    name: localStorage.getItem('hsr_name'),
-                    ip: document.getElementById('ip-res').innerText,
-                    isp: document.getElementById('isp-res').innerText,
-                    latency: delta + " ms",
-                    avg: avg + " ms",
-                    cpu: document.getElementById('cpu-val').innerText,
-                    lastSeen: Date.now()
-                });
+                const pElem = document.getElementById('ping-val');
+                let statusMsg = ""; let sClass = "";
+
+                if (delta <= 30) { statusMsg = "EXCELENTE"; sClass = "excelente"; }
+                else if (delta <= 50) { statusMsg = "MÉDIA"; sClass = "media"; }
+                else if (delta <= 80) { statusMsg = "RUIM"; sClass = "ruim"; }
+                else { statusMsg = "PÉSSIMA"; sClass = "pessima"; }
+
+                pElem.innerText = delta + " ms (" + statusMsg + ")";
+                pElem.className = "val " + sClass;
+
+                let resumo = `Sua conexão está <b>${statusMsg}</b>. `;
+                if (delta > 50) resumo += `<br><span style="color:#ff5252">⚠️ Recomenda-se reiniciar o modem e fechar abas.</span>`;
+                else resumo += `<br><span style="color:#00e676">✅ Qualidade ideal para voz.</span>`;
+
+                document.getElementById('summary-text').innerHTML = resumo;
             };
-        }, 5000);
-        
-        // Check CPU a cada 10 min
-        const checkCPU = () => {
-            const s = performance.now(); let c = 0; while(performance.now()-s < 150) c++;
-            document.getElementById('cpu-val').innerText = c > 400000 ? "Ok" : "Lenta";
-        };
-        checkCPU(); setInterval(checkCPU, 600000);
-    }
+        }
 
-    function startMonitor() {
-        db.ref('stations').on('value', snap => {
-            const container = document.getElementById('stations-container');
-            container.innerHTML = "";
-            const data = snap.val();
-            if(!data) return;
-            Object.values(data).forEach(s => {
-                const isOff = (Date.now() - s.lastSeen) > 40000;
-                let cls = isOff ? 'status-offline' : (parseInt(s.latency) > 80 ? 'status-internet-ruim' : (s.cpu === 'Lenta' ? 'status-cpu-ruim' : 'status-ok'));
-                container.innerHTML += `<div class="station-card ${cls}">
-                    <div style="font-weight:bold">${s.name}</div>
-                    <div style="font-size:0.8rem">IP: ${s.ip} | Ping: ${s.latency}</div>
-                    <div style="font-size:0.8rem">CPU: ${s.cpu} | Status: ${isOff?'Offline':'Online'}</div>
-                </div>`;
+        // 4. Salvar como JPEG
+        function saveAsJpeg() {
+            html2canvas(document.querySelector("#capture-area")).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'diagnostico_hsr.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
             });
-        });
-    }
+        }
 
-    function saveAsJpeg() {
-        html2canvas(document.querySelector("#view-agente")).then(c => {
-            const l = document.createElement('a'); l.download = "HSR.jpg"; l.href = c.toDataURL(); l.click();
-        });
-    }
-</script>
+        // Inicialização e Loops
+        fetchNetInfo();
+        checkCPU();
+        measurePing();
+        setInterval(measurePing, 5000); // Latência a cada 5s
+        setInterval(checkCPU, 10000);   // CPU a cada 10s
+    </script>
 </body>
+
 </html>
