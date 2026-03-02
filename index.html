@@ -2,245 +2,160 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>HSR | Unified Control Center v4.5</title>
+    <title>HSR | SUL Monitor List v5.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0b111a; --card: #161e2b; --blue: #00a2ff; --red: #ef4444; --green: #00e676; --text: #cfd8dc; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        :root { --bg: #0b111a; --card: #161e2b; --blue: #00a2ff; --red: #ef4444; --green: #00e676; --text: #cfd8dc; --border: #232d3d; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
-        /* Telas de Entrada */
         .container { max-width: 600px; margin: auto; }
-        #selector, #login-box { text-align: center; background: var(--card); padding: 40px; border-radius: 16px; margin-top: 50px; border: 1px solid #232d3d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .btn-main { display: block; width: 100%; padding: 18px; margin: 15px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
-        .btn-blue { background: var(--blue); color: white; }
-        .btn-gray { background: #37474f; color: white; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #333; background: var(--bg); color: white; text-align: center; box-sizing: border-box; }
-
-        /* Estilo Estação (Diagnóstico) */
-        #view-station, #view-server { display: none; }
-        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 6px solid var(--blue); box-shadow: 0 4px 15px rgba(0,0,0,0.4); position: relative; }
-        h2 { color: var(--blue); margin-top: 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
-        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #232d3d; }
-        .label { color: #90a4ae; }
-        .val { color: #fff; font-weight: bold; font-family: 'Consolas', monospace; }
-        .summary-box { background: #1c2738; padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px dashed #455a64; line-height: 1.5; }
-
-        /* Estilo Server (Monitor) */
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1300px; margin: auto; }
-        .st-card { background: var(--card); padding: 20px; border-radius: 10px; border-left: 8px solid #444; transition: 0.3s; position: relative; }
-        .st-online { border-left-color: var(--green); }
-        .st-warning { border-left-color: var(--red); animation: blink 1s infinite; }
-        .st-offline { opacity: 0.5; border-left-color: #222; }
+        #selector, #login-box { text-align: center; background: var(--card); padding: 40px; border-radius: 16px; margin-top: 50px; border: 1px solid var(--border); }
         
-        .btn-del-mini { position: absolute; top: 10px; right: 10px; background: rgba(239, 68, 68, 0.2); color: var(--red); border: 1px solid var(--red); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.7rem; }
-        .btn-del-mini:hover { background: var(--red); color: white; }
-
-        .excelente { color: var(--green); }
-        .pessima { color: var(--red); }
-        @keyframes blink { 50% { opacity: 0.6; } }
+        /* Estilo Lista (Tabela) */
+        .list-container { max-width: 1100px; margin: auto; background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        thead { background: #1c2738; color: var(--blue); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+        th, td { padding: 15px; border-bottom: 1px solid var(--border); }
+        
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .bg-green { background-color: var(--green); box-shadow: 0 0 10px var(--green); }
+        .bg-red { background-color: var(--red); box-shadow: 0 0 10px var(--red); animation: blink 1s infinite; }
+        
+        .btn-main { padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
+        .btn-blue { background: var(--blue); color: white; }
+        
+        .excelente { color: var(--green); font-weight: bold; }
+        .pessima { color: var(--red); font-weight: bold; }
+        
+        @keyframes blink { 50% { opacity: 0.3; } }
+        #view-station, #view-server { display: none; }
     </style>
 </head>
 <body>
 
     <div id="selector" class="container">
         <h1 style="color:var(--blue)">HSR <span style="color:white">UNIFIED</span></h1>
-        <p style="opacity:0.7">Controle de Infraestrutura RS</p>
+        <p style="opacity:0.7">Monitoramento em Lista - SUL</p>
         <button class="btn-main btn-blue" onclick="initStation()">ENTRAR COMO ESTAÇÃO</button>
-        <button class="btn-main btn-gray" onclick="showLogin()">ENTRAR COMO SERVER</button>
+        <button class="btn-main btn-gray" style="margin-top:10px; background:#333; color:white; border:none; cursor:pointer" onclick="showLogin()">ENTRAR COMO SERVER</button>
     </div>
 
     <div id="login-box" class="container">
         <h2>Acesso Administrativo</h2>
-        <input type="password" id="pass-field" placeholder="Senha..." onkeydown="if(event.key==='Enter') verifyPass()">
+        <input type="password" id="pass-field" style="width:80%; padding:10px; margin-bottom:10px" placeholder="Senha...">
         <button class="btn-main btn-blue" onclick="verifyPass()">ACESSAR PAINEL</button>
-        <button style="background:none; border:none; color:#90a4ae; cursor:pointer" onclick="location.reload()">Voltar</button>
     </div>
 
     <div id="view-station" class="container">
-        <div id="capture-area">
-            <div class="card">
-                <h2 id="st-title">🌐 IDENTIFICAÇÃO</h2>
-                <div class="info-row"><span class="label">IP Local:</span> <span id="ip-res" class="val">Buscando...</span></div>
-                <div class="info-row"><span class="label">Provedor:</span> <span id="isp-res" class="val">Detectando...</span></div>
-            </div>
-            <div class="card">
-                <h2>📡 PERFORMANCE SIP/HSR</h2>
-                <div class="info-row"><span class="label">Latência (ms):</span> <span id="ping-val" class="val">...</span></div>
-                <div class="info-row"><span class="label">Processamento:</span> <span id="cpu-val" class="val">...</span></div>
-            </div>
-            <div class="card">
-                <h2>📊 DIAGNÓSTICO</h2>
-                <div id="summary-text" class="summary-box">Iniciando análise de rede...</div>
-            </div>
+        <div id="capture-area" style="background:var(--card); padding:20px; border-radius:12px; border-left: 6px solid var(--blue)">
+            <h2 id="st-title">🌐 ESTAÇÃO</h2>
+            <p>IP: <span id="ip-res">...</span></p>
+            <p>Latência: <b id="ping-val">...</b></p>
+            <p style="color:var(--green)">✓ Modo Otimizado (Sul)</p>
         </div>
-        <button onclick="saveAsJpeg()" class="btn-main" style="background:var(--green); color:#0b111a">📸 SALVAR RELATÓRIO JPEG</button>
-        <a href="https://anydesk.com/pt/downloads/thank-you?dv=win_exe" class="btn-main btn-gray" style="text-decoration:none; text-align:center">🚀 BAIXAR ANYDESK</a>
     </div>
 
-    <div id="view-server" style="max-width:1300px; margin:auto">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; padding:0 20px">
-            <div>
-                <h1 style="margin:0">Monitoramento Global HSR</h1>
-                <p id="counter-st" style="color:var(--blue)">Conectando ao Firebase...</p>
-            </div>
-            <button onclick="clearAll()" style="background:var(--red); color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:bold">LIMPAR TUDO</button>
+    <div id="view-server">
+        <div style="max-width:1100px; margin: 20px auto; display:flex; justify-content:space-between; align-items:center">
+            <h1>Painel de Monitoramento SUL</h1>
+            <div id="counter-st" style="font-weight:bold; color:var(--blue)">Iniciando...</div>
         </div>
-        <div id="grid-stations" class="grid"></div>
+
+        <div class="list-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Máquina</th>
+                        <th>IP Local</th>
+                        <th>Provedor</th>
+                        <th>Latência (SUL)</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="list-body">
+                    </tbody>
+            </table>
+        </div>
     </div>
 
 <script>
-    // CONFIGURAÇÃO FIREBASE (DATABASE CRIADA PELO GUSTAVO)
     const firebaseConfig = { databaseURL: "https://interview-69ef5-default-rtdb.firebaseio.com/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
     let myName = "";
-    let currentCPU = "Estável";
-    let currentIP = "---";
-    let currentISP = "---";
 
-    // --- LÓGICA DE NAVEGAÇÃO ---
-    function showLogin() {
-        document.getElementById('selector').style.display = 'none';
-        document.getElementById('login-box').style.display = 'block';
-        document.getElementById('pass-field').focus();
-    }
+    function showLogin() { document.getElementById('selector').style.display = 'none'; document.getElementById('login-box').style.display = 'block'; }
+    function verifyPass() { if(document.getElementById('pass-field').value === 'hsr') { document.getElementById('login-box').style.display = 'none'; initServer(); } else { alert("Erro!"); } }
 
-    function verifyPass() {
-        if(document.getElementById('pass-field').value === 'hsr') {
-            document.getElementById('login-box').style.display = 'none';
-            initServer();
-        } else { alert("Senha incorreta!"); }
-    }
-
-    // --- MODO ESTAÇÃO ---
+    // ESTAÇÃO: Envia sinal a cada 3s
     function initStation() {
-        myName = prompt("Nome desta Estação (ex: RS-INT-01):");
+        myName = prompt("Nome da Estação:");
         if(!myName) return;
-        
         document.getElementById('selector').style.display = 'none';
         document.getElementById('view-station').style.display = 'block';
-        document.getElementById('st-title').innerText = "🌐 MÁQUINA: " + myName;
+        document.getElementById('st-title').innerText = "🌐 " + myName;
 
-        // Dados Iniciais de Rede
-        fetch('https://ipapi.co/json/').then(r => r.json()).then(d => {
-            currentIP = d.ip; currentISP = d.org;
-            document.getElementById('ip-res').innerText = d.ip;
-            document.getElementById('isp-res').innerText = d.org;
-        });
-
-        runStress(); // Primeiro teste de CPU
-        measurePing(); // Primeiro teste de Ping
-        
-        setInterval(measurePing, 5000); // Atualiza dados a cada 5s
-        setInterval(runStress, 300000); // Novo Stress Pesado a cada 5 minutos
+        setInterval(() => {
+            const start = Date.now();
+            const img = new Image();
+            img.src = "https://hsrpbx.com.br/favicon.ico?t=" + start;
+            img.onload = img.onerror = () => {
+                const ping = Date.now() - start;
+                document.getElementById('ping-val').innerText = ping + "ms";
+                db.ref('hsr_monitor/' + myName).set({
+                    name: myName, ping: ping, lastSeen: Date.now()
+                });
+            };
+        }, 3000);
     }
 
-    function runStress() {
-        const start = performance.now();
-        // Carga de processamento real para validar saúde do hardware
-        while (performance.now() - start < 1500) { Math.sqrt(Math.random() * 10000); }
-        currentCPU = (performance.now() - start) < 1650 ? "Estável" : "Sobrecarga";
-        
-        const el = document.getElementById('cpu-val');
-        if(el) {
-            el.innerText = currentCPU;
-            el.className = "val " + (currentCPU === "Estável" ? "excelente" : "pessima");
-        }
-    }
-
-    function measurePing() {
-        const start = Date.now();
-        const img = new Image();
-        img.src = "https://hsrpbx.com.br/favicon.ico?t=" + start;
-        img.onload = img.onerror = () => {
-            const ping = Date.now() - start;
-            const pElem = document.getElementById('ping-val');
-            if(!pElem) return;
-
-            pElem.innerText = ping + " ms";
-            pElem.className = "val " + (ping > 50 ? "pessima" : "excelente");
-            
-            let statusText = ping > 50 ? "⚠️ Latência alta. Áudio pode falhar." : "✅ Estável para SIP.";
-            document.getElementById('summary-text').innerHTML = statusText + `<br><small>Saúde CPU: ${currentCPU}</small>`;
-
-            // Envia para o Painel do Gustavo
-            db.ref('hsr_monitor/' + myName).set({
-                name: myName,
-                ip: currentIP,
-                isp: currentISP,
-                ping: ping,
-                cpu: currentCPU,
-                lastSeen: Date.now()
-            });
-        };
-    }
-
-    // --- MODO SERVER (PAINEL GUSTAVO) ---
+    // SERVER: Lógica de Lista e Auto-Delete (10s)
     function initServer() {
         document.getElementById('view-server').style.display = 'block';
         
         db.ref('hsr_monitor').on('value', snap => {
-            const grid = document.getElementById('grid-stations');
+            const body = document.getElementById('list-body');
             const counter = document.getElementById('counter-st');
-            grid.innerHTML = "";
+            body.innerHTML = "";
             const data = snap.val();
             
-            if(!data) {
-                counter.innerText = "Nenhuma máquina conectada.";
-                grid.innerHTML = "<p style='grid-column: 1/-1; text-align:center; padding:50px; opacity:0.5'>Aguardando sinais das estações...</p>";
-                return;
-            }
+            if(!data) { counter.innerText = "0 Máquinas"; return; }
 
             const entries = Object.keys(data);
-            counter.innerText = `${entries.length} máquinas registradas no ambiente.`;
+            let ativos = 0;
 
             entries.forEach(key => {
                 const st = data[key];
-                const isOff = (Date.now() - st.lastSeen) > 20000;
-                const isBad = st.ping > 50 || st.cpu === "Sobrecarga";
-                const cardClass = isOff ? 'st-offline' : (isBad ? 'st-warning' : 'st-online');
+                const tempoOffline = (Date.now() - st.lastSeen) / 1000;
 
-                grid.innerHTML += `
-                    <div class="st-card ${cardClass}">
-                        <button class="btn-del-mini" onclick="deleteSt('${key}')">EXCLUIR</button>
-                        <b style="color:var(--blue); font-size:1.1rem">${st.name}</b><br>
-                        <small style="opacity:0.6">${st.ip}</small>
-                        <div style="margin-top:15px; border-top:1px solid #232d3d; padding-top:10px">
-                            <div class="info-row"><span>Ping:</span> <b class="${st.ping > 50 ? 'pessima' : 'excelente'}">${st.ping}ms</b></div>
-                            <div class="info-row"><span>CPU:</span> <b class="${st.cpu === 'Estável' ? 'excelente' : 'pessima'}">${st.cpu}</b></div>
-                        </div>
-                        <div style="font-size:0.7rem; margin-top:8px; text-align:right; opacity:0.5">
-                            ${isOff ? 'DESCONECTADO' : 'EM OPERAÇÃO'}
-                        </div>
-                    </div>`;
+                // SEGUNDOS OFFLINE > 10? APAGA DO FIREBASE E NÃO MOSTRA
+                if (tempoOffline > 10) {
+                    db.ref('hsr_monitor/' + key).remove();
+                    return; 
+                }
+
+                ativos++;
+                const isBad = st.ping > 70;
+                
+                body.innerHTML += `
+                    <tr>
+                        <td><span class="status-dot ${isBad ? 'bg-red' : 'bg-green'}"></span> ${isBad ? 'ALERTA' : 'OK'}</td>
+                        <td><b>${st.name}</b></td>
+                        <td><small>${st.ip || '---'}</small></td>
+                        <td><small>${st.isp || 'SUL / HSR'}</small></td>
+                        <td class="${isBad ? 'pessima' : 'excelente'}">${st.ping}ms</td>
+                        <td><button onclick="deleteManual('${key}')" style="background:none; border:1px solid var(--red); color:var(--red); cursor:pointer; border-radius:4px">Remover</button></td>
+                    </tr>
+                `;
             });
+            counter.innerText = ativos + " Máquinas Online";
         });
     }
 
-    // --- FUNÇÕES DE LIMPEZA ---
-    function deleteSt(key) {
-        if(confirm(`Remover a máquina ${key} do monitoramento?`)) {
-            db.ref('hsr_monitor/' + key).remove();
-        }
-    }
-
-    function clearAll() {
-        if(confirm("⚠️ ATENÇÃO: Deseja apagar todos os logs do banco de dados?")) {
-            db.ref('hsr_monitor').remove();
-        }
-    }
-
-    function saveAsJpeg() {
-        html2canvas(document.querySelector("#capture-area")).then(canvas => {
-            const link = document.createElement('a');
-            link.download = `HSR_Report_${myName}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-        });
-    }
+    function deleteManual(key) { db.ref('hsr_monitor/' + key).remove(); }
 </script>
 </body>
 </html>
